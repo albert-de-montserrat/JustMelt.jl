@@ -1,0 +1,21 @@
+name = "JustMelt"
+uuid = "2cca4650-75e7-49e5-b2c2-ae6fb9603b46"
+version = "0.1.0"
+authors = ["albert-de-montserrat <albert.de.montserrat@gmail.com>"]
+
+[deps]
+CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
+DiffResults = "163ba53b-c6d8-5494-b064-1a9d43ac40c5"
+ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
+
+[compat]
+CairoMakie = "0.15.16"
+DiffResults = "1.1.0"
+ForwardDiff = "1.4.6"
+
+[extras]
+InteractiveUtils = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test", "InteractiveUtils"]

@@ -1,0 +1,12 @@
+# Local reference downloads and machine settings
+/papers/
+/.vscode/
+/.agents/
+/.aws/
+/.codex/
+
+# Julia and platform-generated files
+*.jl.cov
+*.jl.mem
+.DS_Store
+/test/metal/Manifest.toml
