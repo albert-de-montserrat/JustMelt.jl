@@ -94,18 +94,19 @@ Return the wet equilibrium residual and its analytic derivative with respect
     return r, dr
 end
 
-# Keep Float64's existing tolerance; Float32 needs a representable bracket width.
+# Keep Float64's existing tolerance; Float32 needs a representable step tolerance.
 @inline _melt_tolerance(::Type{S}) where {S<:AbstractFloat} = max(S(1e-12), S(4) * eps(S))
 
 """
     melt_fraction(P, T, M_cpx, Xbulk, law::WetMeltingLaw;
                   it_max=100, atol=max(S(1e-12), 4eps(S)), check=Val(true))
 
-Solve hydrous batch-melting equilibrium by bisection on `[0,1]`. Pressure is
+Solve hydrous batch-melting equilibrium by Newton–Raphson, with iterates
+clamped to `[0,1]`. Pressure is
 in GPa, temperature in °C, bulk water in wt%, and modal cpx a mass fraction.
 `S` is the pressure's floating-point type; use matching scalar/law types.
 
-Stops on residual or bracket width tolerance. The default checked mode throws
+Stops on residual or Newton step tolerance. The default checked mode throws
 on invalid input or nonconvergence. In device kernels use `check=Val(false)`:
 invalid input or nonconvergence returns a typed NaN without constructing errors.
 """
@@ -123,22 +124,20 @@ invalid input or nonconvergence returns a typed NaN without constructing errors.
     lo, hi = zero(S), one(S)
     melt_fraction_residual(lo, P, T, M_cpx, Xbulk, law) >= zero(S) && return lo
     melt_fraction_residual(hi, P, T, M_cpx, Xbulk, law) <= zero(S) && return hi
-    tolerance = S(atol)
+    F = (lo + hi) * S(0.5)
+    tolerance = max(S(atol), eps(S))
     for _ in 1:it_max
-        F = (lo + hi) * S(0.5)
-        r = melt_fraction_residual(F, P, T, M_cpx, Xbulk, law)
-        if abs(r) <= tolerance || hi - lo <= tolerance
-            return F
+        r, dr = melt_fraction_residual_and_derivative(F, P, T, M_cpx, Xbulk, law)
+        abs(r) <= tolerance && return F
+        next_F = clamp(F - r / dr, lo, hi)
+        # Backtrack the Newton step across phase and saturation kinks.
+        for _ in 1:32
+            abs(melt_fraction_residual(next_F, P, T, M_cpx, Xbulk, law)) < abs(r) && break
+            next_F = F + (next_F - F) * S(0.5)
         end
-        # If an explicit tolerance is below machine precision, stop only when
-        # the bracket cannot shrink further. This also avoids FP32 stagnation.
-        if F == lo || F == hi
-            return F
-        elseif r > zero(r)
-            hi = F
-        else
-            lo = F
-        end
+        # A representable Newton step can vanish at machine precision.
+        abs(next_F - F) <= tolerance && return next_F
+        F = next_F
     end
     if Check
         error("wet melting solver did not converge")
