@@ -1,6 +1,6 @@
 # Melting API
 
-Import names explicitly from `JustMelt`. Implementations are in `src/types.jl` and `src/melt.jl`.
+Import names explicitly from `JustMelt`. Implementations are in `src/types.jl`, `src/melt.jl` and `src/derivatives.jl`.
 
 ## Laws and phase boundaries
 
@@ -42,11 +42,20 @@ melt_fraction(P, T, M_cpx, Xbulk, law::WetMeltingLaw;
               it_max=100, atol=max(S(1e-12), 4eps(S)), check=Val(true))
 ```
 
-Solves `F = Fdry(P, T + ΔT(P, Xbulk, F), M_cpx)` by bisection on `[0,1]`. Shifting temperature is equivalent to lowering all three phase boundaries equally, as in equations (11)–(13). This computes closed-system equilibrium batch melting; it does not model melt extraction or conserve enthalpy along a trajectory.
+Solves `F = Fdry(P, T + ΔT(P, Xbulk, F), M_cpx)` by Newton–Raphson, with iterates clamped to `[0,1]` and the step halved until the residual decreases. Shifting temperature is equivalent to lowering all three phase boundaries equally, as in equations (11)–(13). This computes closed-system equilibrium batch melting; it does not model melt extraction or conserve enthalpy along a trajectory.
 
-The solver returns exact endpoints when appropriate and otherwise stops when either the absolute residual or bracket width is at most `atol`, or when the bracket can no longer shrink at the working precision. `S` is the floating-point type of pressure; brackets and the default tolerance preserve it. Float32 defaults to `4eps(Float32)`; Float64 retains `1e-12`. Negative pressure and bulk water throw `ArgumentError`; exhausting `it_max` throws an error. Supply finite physical pressure, temperature and nonnegative modal cpx, positive finite tolerance and sufficient iterations. Infinite bulk water is permitted for the saturation limit. Phase-boundary ordering and the physical upper limit on modal cpx are not comprehensively validated.
+The solver returns exact endpoints when appropriate and otherwise stops when either the absolute residual or the Newton step is at most `atol`. `S` is the number type of pressure; the endpoints and the default tolerance preserve it. `S` may be a dual number (any `Real`), so ForwardDiff can differentiate through the solver. Float32 defaults to `4eps(Float32)`; Float64 retains `1e-12`. Negative pressure and bulk water throw `ArgumentError`; exhausting `it_max` throws an error. Supply finite physical pressure, temperature and nonnegative modal cpx, positive finite tolerance and sufficient iterations. Infinite bulk water is permitted for the saturation limit. Phase-boundary ordering and the physical upper limit on modal cpx are not comprehensively validated.
 
-`melt_fraction_residual(F, P, T, M_cpx, Xbulk, law)` returns `F-Fdry(...)`. `melt_fraction_residual_and_derivative` returns `(residual, derivative_wrt_F)` analytically, without mutable derivative buffers or an AD runtime. At saturation and phase transitions the model has kinks, so derivatives should be interpreted within the active branch. The wet solver does not differentiate through bisection.
+`melt_fraction_residual(F, P, T, M_cpx, Xbulk, law)` returns `F-Fdry(...)`. `melt_fraction_residual_and_derivative` returns `(residual, derivative_wrt_F)` analytically, without mutable derivative buffers or an AD runtime. At saturation and phase transitions the model has kinks, so derivatives should be interpreted within the active branch. The wet solver uses this analytic derivative for its Newton steps.
+
+## Derivatives of the wet melt fraction
+
+```julia
+melt_fraction_and_T_derivative(P, T, M_cpx, Xbulk, law::WetMeltingLaw)
+melt_fraction_and_P_derivative(P, T, M_cpx, Xbulk, law::WetMeltingLaw)
+```
+
+Return `(F, ∂F/∂T)` and `(F, ∂F/∂P)` from one ForwardDiff pass through the wet solver; the value and derivative come from the same evaluation. Both call `melt_fraction` with `check=Val(false)`, so invalid input or nonconvergence returns NaN rather than throwing. Derivatives at phase and saturation kinks follow the branch the solver lands on.
 
 Use matching Float32 inputs and coefficients for Metal, and `check=Val(false)` inside kernels to return typed NaNs on invalid input or nonconvergence instead of constructing exceptions. See [Metal usage and tests](metal.md).
 

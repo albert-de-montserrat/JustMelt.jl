@@ -1,8 +1,9 @@
-using Test
+using Test, ForwardDiff
 using JustMelt: DryMeltingLaw, WetMeltingLaw, melting_curves, melt_fraction,
     exhaustion_cpx, melt_fraction_exhausted_cpx, T_exhausted_cpx,
     water_partitioning, compute_ΔT, melt_fraction_residual,
-    melt_fraction_residual_and_derivative
+    melt_fraction_residual_and_derivative,
+    melt_fraction_and_T_derivative, melt_fraction_and_P_derivative
 
 @testset "JustMelt" begin
     @testset "Constructors and Table 2 phase boundaries" begin
@@ -80,6 +81,18 @@ using JustMelt: DryMeltingLaw, WetMeltingLaw, melting_curves, melt_fraction,
         residual(x) = melt_fraction_residual(x,p,t,0.17,w,law)
         @test r == residual(f)
         @test dr ≈ (residual(f+1e-6)-residual(f-1e-6))/2e-6 rtol=1e-6
+    end
+
+    @testset "Wet equilibrium accepts dual numbers" begin
+        law = WetMeltingLaw()
+        for (p, t, w) in ((0.5, 1200.0, 0.01), (1.0, 1200.0, 0.01), (1.0, 1300.0, 0.1))
+            fP(x) = melt_fraction(x,t,0.17,w,law)
+            fT(x) = melt_fraction(p,x,0.17,w,law)
+            @test ForwardDiff.derivative(fP, p) ≈ (fP(p+1e-6)-fP(p-1e-6))/2e-6 rtol=1e-5
+            @test ForwardDiff.derivative(fT, t) ≈ (fT(t+1e-4)-fT(t-1e-4))/2e-4 rtol=1e-5
+            @test all(melt_fraction_and_P_derivative(p,t,0.17,w,law) .≈ (fP(p), ForwardDiff.derivative(fP, p)))
+            @test all(melt_fraction_and_T_derivative(p,t,0.17,w,law) .≈ (fT(t), ForwardDiff.derivative(fT, t)))
+        end
     end
 end
 

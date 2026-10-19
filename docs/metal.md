@@ -40,7 +40,7 @@ Indexing and synchronization follow the [Metal kernel programming documentation]
 
 ## Precision and convergence
 
-The default absolute tolerance is `max(S(1e-12), S(4)*eps(S))`, where `S` is the pressure type. This is about `4.77e-7` for Float32 and `1e-12` for Float64. The wet solver stops on residual tolerance, bracket width, or a bracket that cannot shrink further. A small bracket bounds the error in F; it does not guarantee the same tolerance on the residual near a steep branch. Asking for a sub-epsilon Float32 tolerance cannot recover Float64 accuracy.
+The default absolute tolerance is `max(S(1e-12), S(4)*eps(S))`, where `S` is the pressure type. This is about `4.77e-7` for Float32 and `1e-12` for Float64. The wet solver stops when the residual or the Newton step is at most the tolerance. A small step bounds the change in F; it does not guarantee the same tolerance on the residual near a steep branch. Asking for a sub-epsilon Float32 tolerance cannot recover Float64 accuracy.
 
 The 3/2 melting powers use `x*sqrt(x)`. Other nonnegative Float32 powers use Float32 `exp` and `log`, with an explicit zero-base limit, because Base's general Float32 power implementation can internally promote to Float64. This introduces normal Float32 rounding differences from the Float64 model. No global fast-math mode is enabled.
 
