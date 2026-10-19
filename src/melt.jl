@@ -95,7 +95,7 @@ Return the wet equilibrium residual and its analytic derivative with respect
 end
 
 # Keep Float64's existing tolerance; Float32 needs a representable step tolerance.
-@inline _melt_tolerance(::Type{S}) where {S<:AbstractFloat} = max(S(1e-12), S(4) * eps(S))
+@inline _melt_tolerance(::Type{S}) where {S<:Real} = max(S(1e-12), S(4) * eps(S))
 
 """
     melt_fraction(P, T, M_cpx, Xbulk, law::WetMeltingLaw;
@@ -104,14 +104,15 @@ end
 Solve hydrous batch-melting equilibrium by Newton–Raphson, with iterates
 clamped to `[0,1]`. Pressure is
 in GPa, temperature in °C, bulk water in wt%, and modal cpx a mass fraction.
-`S` is the pressure's floating-point type; use matching scalar/law types.
+`S` is the pressure's number type (a float, or a dual number for AD);
+use matching scalar/law types.
 
 Stops on residual or Newton step tolerance. The default checked mode throws
 on invalid input or nonconvergence. In device kernels use `check=Val(false)`:
 invalid input or nonconvergence returns a typed NaN without constructing errors.
 """
 @inline function melt_fraction(P::S, T, M_cpx, Xbulk, law::WetMeltingLaw;
-        it_max=100, atol=_melt_tolerance(S), check::Val{Check}=Val(true)) where {S<:AbstractFloat, Check}
+        it_max=100, atol=_melt_tolerance(S), check::Val{Check}=Val(true)) where {S<:Real, Check}
     if !(P >= zero(P) && isfinite(P) && Xbulk >= zero(Xbulk) &&
          isfinite(T) && isfinite(M_cpx) && M_cpx >= zero(M_cpx) &&
          isfinite(atol) && atol > zero(atol))

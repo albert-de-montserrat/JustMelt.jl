@@ -36,9 +36,13 @@ F_wet = melt_fraction(1.0, 1200.0, 0.17, 0.1, WetMeltingLaw())
 law32 = WetMeltingLaw(Float32)
 F32 = melt_fraction(1f0, 1200f0, 0.17f0, 0.1f0, law32)
 @assert F32 isa Float32
+
+# Melt fraction and its temperature or pressure derivative in one AD pass.
+F, dFdT = melt_fraction_and_T_derivative(1.0, 1200.0, 0.17, 0.1, WetMeltingLaw())
+F, dFdP = melt_fraction_and_P_derivative(1.0, 1200.0, 0.17, 0.1, WetMeltingLaw())
 ```
 
-`DryMeltingLaw`, `WetMeltingLaw` and `melt_fraction` are exported. Helper functions can be imported explicitly or accessed with the `JustMelt.` prefix. See the [API documentation](docs/api.md) for custom coefficients, solver options and residual derivatives.
+`DryMeltingLaw`, `WetMeltingLaw`, `melt_fraction`, `melt_fraction_and_T_derivative` and `melt_fraction_and_P_derivative` are exported. Helper functions can be imported explicitly or accessed with the `JustMelt.` prefix. See the [API documentation](docs/api.md) for custom coefficients, solver options and derivatives.
 
 ## Units
 
@@ -54,7 +58,7 @@ These functions describe closed-system equilibrium batch melting. They do not mo
 
 ## Float32 and Metal.jl
 
-Float32 laws and inputs preserve Float32 constants, powers, solver brackets, tolerances and analytic residual derivatives. The default wet-solver tolerance is about `4.77f-7` for Float32 and `1e-12` for Float64.
+Float32 laws and inputs preserve Float32 constants, powers, solver endpoints, tolerances and analytic residual derivatives. The default wet-solver tolerance is about `4.77f-7` for Float32 and `1e-12` for Float64.
 
 For device kernels, use `check=Val(false)` to return a typed NaN on invalid input or nonconvergence without constructing exceptions:
 
